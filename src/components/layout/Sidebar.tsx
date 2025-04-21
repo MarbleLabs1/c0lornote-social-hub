@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface NavItem {
   title: string;
@@ -22,11 +24,9 @@ interface NavItem {
   requiresAuth?: boolean;
 }
 
-// Mock authentication state (will be replaced with actual auth logic later)
-const isAuthenticated = true;
-
 export function Sidebar() {
   const location = useLocation();
+  const { isAuthenticated, logout } = useAuth();
 
   const navItems: NavItem[] = [
     {
@@ -74,6 +74,11 @@ export function Sidebar() {
   const filteredNavItems = navItems.filter(
     item => !item.requiresAuth || isAuthenticated
   );
+  
+  const handleLogout = () => {
+    logout();
+    toast.success("You have been logged out successfully.");
+  };
 
   return (
     <div className="hidden md:flex min-h-screen w-[220px] flex-col border-r bg-background">
@@ -96,12 +101,15 @@ export function Sidebar() {
       </ScrollArea>
       <div className="mt-auto p-4 border-t">
         {isAuthenticated ? (
-          <Button variant="outline" className="w-full justify-start">
+          <Button variant="outline" className="w-full justify-start" onClick={handleLogout}>
             <LogOut className="mr-2 h-5 w-5" />
             Log out
           </Button>
         ) : (
-          <Button className="w-full gradient-bg text-white hover:opacity-90">
+          <Button 
+            className="w-full gradient-bg text-white hover:opacity-90"
+            onClick={() => location.pathname !== "/login" && (window.location.href = "/login")}
+          >
             <LogIn className="mr-2 h-5 w-5" />
             Log in
           </Button>

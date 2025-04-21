@@ -1,134 +1,201 @@
 
-import { useState } from "react";
+import * as React from "react";
+import { useNavigate } from "react-router-dom";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardFooter, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Link } from "react-router-dom";
+import { Loader2, LogIn, UserPlus } from "lucide-react";
 import { toast } from "sonner";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
 
-export function AuthForm() {
-  const [isLoading, setIsLoading] = useState(false);
+const loginSchema = z.object({
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
+});
 
-  const handleLogin = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+const registerSchema = z.object({
+  username: z.string().min(3, { message: "Username must be at least 3 characters" }),
+  email: z.string().email({ message: "Please enter a valid email address" }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters" }),
+  confirmPassword: z.string(),
+}).refine(data => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
+type RegisterFormValues = z.infer<typeof registerSchema>;
+
+interface AuthFormProps {
+  isRegister?: boolean;
+}
+
+export function AuthForm({ isRegister = false }: AuthFormProps) {
+  const [isLoading, setIsLoading] = React.useState(false);
+  const navigate = useNavigate();
+  const { login, register } = useAuth();
+  
+  const form = useForm<LoginFormValues | RegisterFormValues>({
+    resolver: zodResolver(isRegister ? registerSchema : loginSchema),
+    defaultValues: isRegister
+      ? { username: "", email: "", password: "", confirmPassword: "" }
+      : { email: "", password: "" },
+  });
+
+  const onSubmit = async (data: LoginFormValues | RegisterFormValues) => {
     setIsLoading(true);
     
-    // Simulate API login
-    setTimeout(() => {
-      toast.success("Successfully logged in!");
+    try {
+      if (isRegister) {
+        const registerData = data as RegisterFormValues;
+        await register(registerData.username, registerData.email, registerData.password);
+        toast.success("Account created successfully");
+      } else {
+        const loginData = data as LoginFormValues;
+        await login(loginData.email, loginData.password);
+        toast.success("Logged in successfully");
+      }
+      
+      navigate("/");
+    } catch (error) {
+      toast.error(isRegister ? "Failed to create account" : "Failed to log in");
+      console.error(error);
+    } finally {
       setIsLoading(false);
-    }, 1500);
-  };
-
-  const handleRegister = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    // Simulate API registration
-    setTimeout(() => {
-      toast.success("Account created successfully! Please log in.");
-      setIsLoading(false);
-    }, 1500);
+    }
   };
 
   return (
-    <Card className="mx-auto max-w-md w-full">
-      <CardHeader className="space-y-1 text-center">
-        <CardTitle className="text-2xl font-bold gradient-text">c0lornote</CardTitle>
-        <CardDescription>
-          Enter your email below to login to your account or create a new account
+    <Card className="w-full">
+      <CardHeader>
+        <CardTitle className="text-2xl font-bold text-center gradient-text">
+          {isRegister ? "Create an account" : "Welcome back"}
+        </CardTitle>
+        <CardDescription className="text-center">
+          {isRegister 
+            ? "Enter your details to create your c0lornote account"
+            : "Enter your credentials to sign in to your account"
+          }
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="login" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-4">
-            <TabsTrigger value="login">Login</TabsTrigger>
-            <TabsTrigger value="register">Register</TabsTrigger>
-          </TabsList>
-          <TabsContent value="login">
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" placeholder="name@example.com" required type="email" />
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Button variant="link" size="sm" className="text-sm font-medium h-auto p-0">
-                    Forgot password?
-                  </Button>
-                </div>
-                <Input id="password" required type="password" />
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full gradient-bg text-white hover:opacity-90"
-                disabled={isLoading}
-              >
-                {isLoading ? "Logging in..." : "Login"}
-              </Button>
-            </form>
-          </TabsContent>
-          
-          <TabsContent value="register">
-            <form onSubmit={handleRegister} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <Input id="username" placeholder="cooluser123" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-email">Email</Label>
-                <Input id="register-email" placeholder="name@example.com" required type="email" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="register-password">Password</Label>
-                <Input id="register-password" required type="password" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirm-password">Confirm Password</Label>
-                <Input id="confirm-password" required type="password" />
-              </div>
-              <Button 
-                type="submit" 
-                className="w-full gradient-bg text-white hover:opacity-90"
-                disabled={isLoading}
-              >
-                {isLoading ? "Creating account..." : "Create account"}
-              </Button>
-              <p className="text-xs text-center text-muted-foreground">
-                By clicking "Create account", you agree to our{" "}
-                <a href="#" className="underline">Terms of Service</a> and{" "}
-                <a href="#" className="underline">Privacy Policy</a>.
-              </p>
-            </form>
-          </TabsContent>
-        </Tabs>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {isRegister && (
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Username</FormLabel>
+                    <FormControl>
+                      <Input placeholder="johndoe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="you@example.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="••••••••" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {isRegister && (
+              <FormField
+                control={form.control}
+                name="confirmPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password</FormLabel>
+                    <FormControl>
+                      <Input type="password" placeholder="••••••••" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            <Button 
+              type="submit" 
+              className="w-full gradient-bg text-white hover:opacity-90" 
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {isRegister ? "Creating Account..." : "Logging In..."}
+                </>
+              ) : (
+                <>
+                  {isRegister ? (
+                    <>
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      Create Account
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="mr-2 h-4 w-4" />
+                      Sign In
+                    </>
+                  )}
+                </>
+              )}
+            </Button>
+          </form>
+        </Form>
       </CardContent>
-      <CardFooter className="flex flex-col gap-4">
-        <div className="relative w-full">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t"></span>
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Button variant="outline" disabled={isLoading}>
-            Google
-          </Button>
-          <Button variant="outline" disabled={isLoading}>
-            GitHub
-          </Button>
-        </div>
+      <CardFooter className="flex justify-center">
+        <p className="text-sm text-muted-foreground">
+          {isRegister ? (
+            <>
+              Already have an account?{" "}
+              <Link to="/login" className="text-c0lor-purple hover:underline">
+                Sign in
+              </Link>
+            </>
+          ) : (
+            <>
+              Don't have an account?{" "}
+              <Link to="/register" className="text-c0lor-purple hover:underline">
+                Create one
+              </Link>
+            </>
+          )}
+        </p>
       </CardFooter>
     </Card>
   );
